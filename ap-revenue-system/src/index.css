@@ -1,0 +1,249 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   AP Revenue ICAMS - Global Styles
+   ============================================================ */
+
+:root {
+  --ap-blue: #003087;
+  --ap-blue-light: #0052CC;
+  --ap-gold: #C8960C;
+  --ap-gold-light: #F5D770;
+  --ap-green: #006400;
+  --ap-red: #8B0000;
+  --sidebar-width: 260px;
+  --header-height: 64px;
+  --transition-base: 0.2s ease;
+}
+
+/* ---- Base ---- */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: #F0F4F8;
+  color: #212529;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ---- AP Government Watermark ---- */
+.ap-watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 400px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='none' stroke='%23003087' stroke-width='3'/%3E%3Ccircle cx='100' cy='100' r='80' fill='none' stroke='%23003087' stroke-width='1.5'/%3E%3Ccircle cx='100' cy='60' r='20' fill='none' stroke='%23003087' stroke-width='2'/%3E%3Cpath d='M80 80 Q100 140 120 80' fill='none' stroke='%23003087' stroke-width='2'/%3E%3Ctext x='100' y='165' text-anchor='middle' font-size='14' font-weight='bold' fill='%23003087' font-family='serif'%3EAndhra Pradesh%3C/text%3E%3Ctext x='100' y='182' text-anchor='middle' font-size='10' fill='%23003087' font-family='serif'%3ERevenue Department%3C/text%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #c0c0c0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ap-blue); }
+
+/* ---- Government Card Style ---- */
+.gov-card {
+  @apply bg-white rounded-lg shadow-card border border-gray-100 overflow-hidden;
+}
+
+.gov-card-header {
+  @apply bg-ap-blue text-white px-4 py-3 flex items-center justify-between;
+}
+
+/* ---- Table Styles ---- */
+.gov-table {
+  @apply w-full text-sm;
+}
+
+.gov-table thead tr {
+  @apply bg-ap-blue text-white;
+}
+
+.gov-table thead th {
+  @apply px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider whitespace-nowrap;
+}
+
+.gov-table tbody tr {
+  @apply border-b border-gray-100 hover:bg-blue-50 transition-colors;
+}
+
+.gov-table tbody tr:last-child {
+  @apply border-b-0;
+}
+
+.gov-table tbody td {
+  @apply px-4 py-2.5 text-gray-700;
+}
+
+/* ---- Form Styles ---- */
+.gov-label {
+  @apply block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1;
+}
+
+.gov-input {
+  @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-md
+         focus:outline-none focus:ring-2 focus:ring-ap-blue focus:border-transparent
+         placeholder-gray-400 bg-white transition-all;
+}
+
+.gov-input:disabled {
+  @apply bg-gray-50 cursor-not-allowed text-gray-500;
+}
+
+.gov-select {
+  @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-md
+         focus:outline-none focus:ring-2 focus:ring-ap-blue focus:border-transparent
+         bg-white transition-all appearance-none;
+}
+
+.gov-textarea {
+  @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-md
+         focus:outline-none focus:ring-2 focus:ring-ap-blue focus:border-transparent
+         placeholder-gray-400 resize-none;
+}
+
+/* ---- Button Styles ---- */
+.btn-primary {
+  @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium
+         bg-ap-blue text-white rounded-md hover:bg-ap-blue-dark
+         focus:outline-none focus:ring-2 focus:ring-ap-blue focus:ring-offset-1
+         transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium
+         bg-white text-ap-blue border border-ap-blue rounded-md hover:bg-blue-50
+         focus:outline-none focus:ring-2 focus:ring-ap-blue focus:ring-offset-1
+         transition-all active:scale-95 disabled:opacity-50;
+}
+
+.btn-gold {
+  @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium
+         bg-ap-gold text-white rounded-md hover:bg-ap-gold-dark
+         focus:outline-none focus:ring-2 focus:ring-ap-gold focus:ring-offset-1
+         transition-all active:scale-95 disabled:opacity-50;
+}
+
+.btn-danger {
+  @apply inline-flex items-center gap-2 px-4 py-2 text-sm font-medium
+         bg-red-600 text-white rounded-md hover:bg-red-700
+         focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1
+         transition-all active:scale-95 disabled:opacity-50;
+}
+
+.btn-icon {
+  @apply p-2 rounded-md transition-colors text-gray-500 hover:text-ap-blue hover:bg-blue-50;
+}
+
+/* ---- Badge Styles ---- */
+.badge {
+  @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+}
+
+.badge-blue { @apply badge bg-blue-100 text-blue-800; }
+.badge-green { @apply badge bg-green-100 text-green-800; }
+.badge-red { @apply badge bg-red-100 text-red-800; }
+.badge-yellow { @apply badge bg-yellow-100 text-yellow-800; }
+.badge-gray { @apply badge bg-gray-100 text-gray-700; }
+.badge-purple { @apply badge bg-purple-100 text-purple-800; }
+
+/* ---- Status indicators ---- */
+.status-active { @apply badge bg-green-100 text-green-800; }
+.status-inactive { @apply badge bg-red-100 text-red-800; }
+.status-pending { @apply badge bg-yellow-100 text-yellow-800; }
+
+/* ---- Sidebar ---- */
+.sidebar-nav-item {
+  @apply flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium
+         transition-all duration-150 text-blue-100 hover:bg-white/10 hover:text-white;
+}
+
+.sidebar-nav-item.active {
+  @apply bg-white/15 text-white font-semibold;
+}
+
+.sidebar-nav-item .nav-icon {
+  @apply w-4 h-4 flex-shrink-0;
+}
+
+/* ---- Page Title ---- */
+.page-title {
+  @apply text-xl font-bold text-ap-blue flex items-center gap-2;
+}
+
+.page-breadcrumb {
+  @apply text-xs text-gray-500 flex items-center gap-1;
+}
+
+/* ---- Stat Cards ---- */
+.stat-card {
+  @apply gov-card p-4 flex items-center gap-4;
+}
+
+.stat-icon {
+  @apply w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0;
+}
+
+/* ---- Form Error ---- */
+.form-error {
+  @apply text-red-600 text-xs mt-1 flex items-center gap-1;
+}
+
+/* ---- Animations ---- */
+.fade-enter { animation: fadeIn 0.25s ease-out; }
+.slide-up-enter { animation: slideUp 0.3s ease-out; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Modal ---- */
+.modal-overlay {
+  @apply fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4;
+  backdrop-filter: blur(2px);
+}
+
+.modal-container {
+  @apply bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col;
+}
+
+/* ---- NLP Search ---- */
+.nlp-chip {
+  @apply inline-flex items-center px-2.5 py-1 bg-blue-50 text-ap-blue text-xs
+         rounded-full border border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors;
+}
+
+/* ---- Print styles ---- */
+@media print {
+  .sidebar, .header, .no-print { display: none !important; }
+  .print-full { width: 100% !important; margin-left: 0 !important; }
+}
+
+/* ---- Responsive sidebar ---- */
+@media (max-width: 768px) {
+  :root { --sidebar-width: 240px; }
+}
