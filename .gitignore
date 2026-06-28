@@ -28,6 +28,3 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
-
-# Old folder (leftover, safe to delete manually)
-ap-revenue-system/
