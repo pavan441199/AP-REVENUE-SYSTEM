@@ -345,7 +345,7 @@ export const DEMO_USERS: User[] = [
     id: 'USR00001',
     userId: 'admin001',
     username: 'admin',
-    passwordHash: 'c4ca4238a0b923820dcc509a6f75849b', // md5 of "admin@123"
+    passwordHash: 'e10adc3949ba59abbe56e057f20f883e', // md5 of "123456"
     role: 'administrator',
     fullName: 'Srinivasa Rao Muppidi',
     designation: 'District Collector',

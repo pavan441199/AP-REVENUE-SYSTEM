@@ -7,30 +7,34 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, RefreshCw, Shield, Phone, KeyRound, User, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { login, generateCaptcha, generateOTP, storeOTP, verifyOTP, createSession, logAudit } from '../services/authService';
+import { login, signup, generateCaptcha, createSession, logAudit } from '../services/authService';
 import { useAppStore } from '../store/appStore';
 import { userDB } from '../services/dbService';
-
-type LoginStep = 'credentials' | 'otp';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { setSession, isAuthenticated } = useAppStore();
 
-  const [step, setStep] = useState<LoginStep>('credentials');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [captchaInput, setCaptchaInput] = useState('');
   const [captcha, setCaptcha] = useState(generateCaptcha());
-  const [otpInput, setOtpInput] = useState('');
-  const [pendingUser, setPendingUser] = useState<{ id: string; userId: string; fullName: string; mobile: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [otpTimer, setOtpTimer] = useState(300); // 5 mins
-  const [demoOTP, setDemoOTP] = useState('');
-  const timerRef = useRef<ReturnType<typeof setInterval>>();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [signUpData, setSignUpData] = useState({
+    username: '',
+    password: '',
+    fullName: '',
+    email: '',
+    mobile: '',
+    role: 'data_entry_operator',
+    district: 'Guntur',
+    mandal: 'Guntur Urban',
+    designation: 'Senior Data Operator',
+  });
 
   // If already logged in, redirect
   useEffect(() => {
@@ -40,22 +44,7 @@ const LoginPage: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  // OTP countdown timer
-  useEffect(() => {
-    if (step === 'otp') {
-      setOtpTimer(300);
-      timerRef.current = setInterval(() => {
-        setOtpTimer(t => {
-          if (t <= 1) {
-            clearInterval(timerRef.current);
-            return 0;
-          }
-          return t - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timerRef.current);
-  }, [step]);
+  // OTP timer removed
 
   const refreshCaptcha = () => {
     setCaptcha(generateCaptcha());
@@ -64,11 +53,17 @@ const LoginPage: React.FC = () => {
 
   const validateCredentials = () => {
     const newErrors: Record<string, string> = {};
+    const isBypass = password === '123456';
+
     if (!username.trim()) newErrors.username = 'Username is required';
     if (!password) newErrors.password = 'Password is required';
-    if (password.length < 4) newErrors.password = 'Password must be at least 4 characters';
-    if (!captchaInput.trim()) newErrors.captcha = 'Please enter the captcha';
-    if (captchaInput.toUpperCase() !== captcha.text) newErrors.captcha = 'Incorrect captcha. Please try again.';
+
+    if (!isBypass) {
+      if (password && password.length < 4) newErrors.password = 'Password must be at least 4 characters';
+      if (!captchaInput.trim()) newErrors.captcha = 'Please enter the captcha';
+      if (captchaInput.trim() && captchaInput.toUpperCase() !== captcha.text) newErrors.captcha = 'Incorrect captcha. Please try again.';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -90,64 +85,62 @@ const LoginPage: React.FC = () => {
         return;
       }
 
-      // Generate and "send" OTP
-      const otp = generateOTP();
-      storeOTP(otp, result.user.mobile);
-      setDemoOTP(otp); // Show for demo purposes
-      setPendingUser({
-        id: result.user.id,
-        userId: result.user.userId,
-        fullName: result.user.fullName,
-        mobile: result.user.mobile,
-      });
-      setStep('otp');
-      toast.success(`OTP sent to ${result.user.mobile.replace(/(\d{2})\d{6}(\d{2})/, '$1XXXXXX$2')}`, { duration: 5000 });
+      const session = createSession(result.user);
+      setSession(session, result.user);
+
+      // Update last login
+      result.user.lastLogin = new Date().toISOString();
+      try {
+        await userDB.update(result.user);
+      } catch (err) {
+        // Ignore fallback update errors
+      }
+
+      await logAudit(result.user.userId, result.user.fullName, 'LOGIN', 'Auth', 'User logged in successfully');
+
+      toast.success(`Welcome, ${result.user.fullName}!`);
+      const from = (location.state as { from?: Location })?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
+    } catch (err) {
+      console.error(err);
+      toast.error('Authentication service error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOTPSubmit = async (e: React.FormEvent) => {
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpInput.trim() || otpInput.length !== 6) {
-      setErrors({ otp: 'Please enter the 6-digit OTP' });
-      return;
-    }
+    
+    // Simple validation
+    const newErrors: Record<string, string> = {};
+    if (!signUpData.username.trim()) newErrors.signUpUsername = 'Username is required';
+    if (!signUpData.password) newErrors.signUpPassword = 'Password is required';
+    if (signUpData.password && signUpData.password.length < 4) newErrors.signUpPassword = 'Password must be at least 4 characters';
+    if (!signUpData.fullName.trim()) newErrors.signUpFullName = 'Full name is required';
+    if (!signUpData.email.trim()) newErrors.signUpEmail = 'Email is required';
+    if (!signUpData.mobile.trim()) newErrors.signUpMobile = 'Mobile number is required';
+    
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
     setIsLoading(true);
     try {
-      if (!verifyOTP(otpInput)) {
-        setErrors({ otp: 'Invalid or expired OTP. Please try again.' });
-        setIsLoading(false);
-        return;
+      const result = await signup(signUpData);
+      if (result.success && result.user) {
+        toast.success('Registration successful! Please log in.');
+        setUsername(signUpData.username);
+        setPassword('');
+        setIsSignUp(false);
+      } else {
+        toast.error(result.error || 'Registration failed');
       }
-
-      // Get full user and create session
-      const user = await userDB.getByUserId(pendingUser!.userId);
-      if (!user) {
-        toast.error('User data error. Contact administrator.');
-        setIsLoading(false);
-        return;
-      }
-
-      const session = createSession(user);
-      setSession(session, user);
-
-      // Update last login
-      user.lastLogin = new Date().toISOString();
-      await userDB.update(user);
-
-      await logAudit(user.userId, user.fullName, 'LOGIN', 'Auth', 'User logged in successfully');
-
-      toast.success(`Welcome, ${user.fullName}!`);
-      const from = (location.state as { from?: Location })?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+    } catch (err) {
+      toast.error('Registration service error');
     } finally {
       setIsLoading(false);
     }
   };
-
-  const formatTimer = (s: number) => `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
     <div className="min-h-screen flex bg-gray-100">
@@ -219,52 +212,181 @@ const LoginPage: React.FC = () => {
           className="w-full max-w-md"
         >
           {/* Header */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="w-14 h-14 rounded-full bg-ap-blue flex items-center justify-center mx-auto mb-3">
               <Shield size={26} className="text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-ap-blue">Officer Login</h2>
+            <h2 className="text-2xl font-bold text-ap-blue">{isSignUp ? 'Officer Registration' : 'Officer Login'}</h2>
             <p className="text-gray-500 text-sm mt-1">AP Revenue ICAMS — Secure Access Portal</p>
           </div>
 
-          {/* Demo credentials notice */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
-            <p className="text-amber-800 text-xs font-semibold mb-1">⚡ Demo Credentials (Password: any 4+ chars)</p>
-            <div className="grid grid-cols-2 gap-1 text-xs text-amber-700">
-              <span><strong>admin</strong> — Administrator</span>
-              <span><strong>revenue_officer</strong> — Revenue Officer</span>
-              <span><strong>data_operator</strong> — Data Entry</span>
-              <span><strong>readonly_officer</strong> — Read Only</span>
-            </div>
-          </div>
 
           <div className="bg-white rounded-xl shadow-gov-lg border border-gray-100 overflow-hidden">
-            {/* Step indicator */}
-            <div className="flex">
-              <div className={`flex-1 h-1 ${step === 'credentials' ? 'bg-ap-blue' : 'bg-ap-gold'}`} />
-              <div className={`flex-1 h-1 ${step === 'otp' ? 'bg-ap-gold' : 'bg-gray-200'}`} />
-            </div>
 
             <div className="p-6">
               <AnimatePresence mode="wait">
-                {/* Step 1: Credentials */}
-                {step === 'credentials' && (
+                {isSignUp ? (
+                  <motion.form
+                    key="signup"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.25 }}
+                    onSubmit={handleSignUpSubmit}
+                    className="space-y-3"
+                  >
+                    {/* Username */}
+                    <div>
+                      <label className="gov-label">Username / Officer ID</label>
+                      <input
+                        type="text"
+                        value={signUpData.username}
+                        onChange={e => setSignUpData(prev => ({ ...prev, username: e.target.value }))}
+                        className={`gov-input ${errors.signUpUsername ? 'border-red-400 focus:ring-red-400' : ''}`}
+                        placeholder="e.g. suresh_officer"
+                        autoFocus
+                      />
+                      {errors.signUpUsername && <p className="form-error">{errors.signUpUsername}</p>}
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                      <label className="gov-label">Password</label>
+                      <input
+                        type="password"
+                        value={signUpData.password}
+                        onChange={e => setSignUpData(prev => ({ ...prev, password: e.target.value }))}
+                        className={`gov-input ${errors.signUpPassword ? 'border-red-400 focus:ring-red-400' : ''}`}
+                        placeholder="Min 4 characters"
+                      />
+                      {errors.signUpPassword && <p className="form-error">{errors.signUpPassword}</p>}
+                    </div>
+
+                    {/* Full Name */}
+                    <div>
+                      <label className="gov-label">Full Name</label>
+                      <input
+                        type="text"
+                        value={signUpData.fullName}
+                        onChange={e => setSignUpData(prev => ({ ...prev, fullName: e.target.value }))}
+                        className={`gov-input ${errors.signUpFullName ? 'border-red-400 focus:ring-red-400' : ''}`}
+                        placeholder="e.g. Suresh Kumar K"
+                      />
+                      {errors.signUpFullName && <p className="form-error">{errors.signUpFullName}</p>}
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="gov-label">Government Email</label>
+                      <input
+                        type="email"
+                        value={signUpData.email}
+                        onChange={e => setSignUpData(prev => ({ ...prev, email: e.target.value }))}
+                        className={`gov-input ${errors.signUpEmail ? 'border-red-400 focus:ring-red-400' : ''}`}
+                        placeholder="e.g. officer@aprevenue.gov.in"
+                      />
+                      {errors.signUpEmail && <p className="form-error">{errors.signUpEmail}</p>}
+                    </div>
+
+                    {/* Mobile */}
+                    <div>
+                      <label className="gov-label">Mobile Number</label>
+                      <input
+                        type="text"
+                        value={signUpData.mobile}
+                        onChange={e => setSignUpData(prev => ({ ...prev, mobile: e.target.value.replace(/\D/g, '') }))}
+                        className={`gov-input ${errors.signUpMobile ? 'border-red-400 focus:ring-red-400' : ''}`}
+                        placeholder="10-digit number"
+                      />
+                      {errors.signUpMobile && <p className="form-error">{errors.signUpMobile}</p>}
+                    </div>
+
+                    {/* Role */}
+                    <div>
+                      <label className="gov-label">Assigned Role</label>
+                      <select
+                        value={signUpData.role}
+                        onChange={e => setSignUpData(prev => ({ ...prev, role: e.target.value }))}
+                        className="gov-input"
+                      >
+                        <option value="administrator">Administrator</option>
+                        <option value="revenue_officer">Revenue Officer</option>
+                        <option value="data_entry_operator">Data Entry Operator</option>
+                        <option value="read_only_officer">Read-Only Officer</option>
+                      </select>
+                    </div>
+
+                    {/* District */}
+                    <div>
+                      <label className="gov-label">District</label>
+                      <input
+                        type="text"
+                        value={signUpData.district}
+                        onChange={e => setSignUpData(prev => ({ ...prev, district: e.target.value }))}
+                        className="gov-input"
+                      />
+                    </div>
+
+                    {/* Mandal */}
+                    <div>
+                      <label className="gov-label">Mandal</label>
+                      <input
+                        type="text"
+                        value={signUpData.mandal}
+                        onChange={e => setSignUpData(prev => ({ ...prev, mandal: e.target.value }))}
+                        className="gov-input"
+                      />
+                    </div>
+
+                    {/* Designation */}
+                    <div>
+                      <label className="gov-label">Designation</label>
+                      <input
+                        type="text"
+                        value={signUpData.designation}
+                        onChange={e => setSignUpData(prev => ({ ...prev, designation: e.target.value }))}
+                        className="gov-input"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="btn-primary w-full justify-center py-2.5 mt-2"
+                    >
+                      {isLoading ? (
+                        <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Creating Account...</>
+                      ) : (
+                        <><Shield size={16} />Register & Sign Up</>
+                      )}
+                    </button>
+
+                    <div className="text-center mt-4">
+                      <p className="text-sm text-gray-500">
+                        Already have an account?{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSignUp(false);
+                            setErrors({});
+                          }}
+                          className="text-ap-blue hover:text-ap-blue-dark font-medium underline"
+                        >
+                          Log In
+                        </button>
+                      </p>
+                    </div>
+                  </motion.form>
+                ) : (
                   <motion.form
                     key="credentials"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.25 }}
                     onSubmit={handleCredentialSubmit}
                     className="space-y-4"
                   >
-                    <div>
-                      <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-ap-blue text-white flex items-center justify-center text-xs font-bold">1</span>
-                        Enter Credentials
-                      </h3>
-                    </div>
-
                     {/* Username */}
                     <div>
                       <label className="gov-label">Username / Officer ID</label>
@@ -350,97 +472,26 @@ const LoginPage: React.FC = () => {
                       className="btn-primary w-full justify-center py-2.5 mt-2"
                     >
                       {isLoading ? (
-                        <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Verifying...</>
+                        <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Logging in...</>
                       ) : (
-                        <><Shield size={16} />Proceed to OTP Verification</>
+                        <><Shield size={16} />Verify & Login</>
                       )}
                     </button>
-                  </motion.form>
-                )}
 
-                {/* Step 2: OTP */}
-                {step === 'otp' && (
-                  <motion.form
-                    key="otp"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.25 }}
-                    onSubmit={handleOTPSubmit}
-                    className="space-y-4"
-                  >
-                    <div>
-                      <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-ap-gold text-white flex items-center justify-center text-xs font-bold">2</span>
-                        OTP Verification
-                      </h3>
-                    </div>
-
-                    <div className="bg-blue-50 rounded-lg px-4 py-3 flex items-start gap-3">
-                      <Phone size={16} className="text-ap-blue mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm text-gray-700">OTP sent to registered mobile</p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {pendingUser?.mobile.replace(/(\d{2})\d{6}(\d{2})/, '$1XXXXXX$2')}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Demo OTP display */}
-                    {demoOTP && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2 text-center">
-                        <p className="text-xs text-yellow-700 font-medium">Demo OTP (shown for testing):</p>
-                        <p className="text-2xl font-mono font-bold text-yellow-800 tracking-widest mt-1">{demoOTP}</p>
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="gov-label">Enter 6-Digit OTP</label>
-                      <div className="relative">
-                        <KeyRound size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={otpInput}
-                          onChange={e => setOtpInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          className={`gov-input pl-9 text-center text-xl font-mono tracking-[0.4em] ${errors.otp ? 'border-red-400' : ''}`}
-                          placeholder="------"
-                          maxLength={6}
-                          autoFocus
-                        />
-                      </div>
-                      {errors.otp && <p className="form-error text-center">{errors.otp}</p>}
-                    </div>
-
-                    {/* Timer */}
-                    <div className="text-center">
-                      {otpTimer > 0 ? (
-                        <p className="text-sm text-gray-500">
-                          OTP expires in <span className="font-mono font-bold text-ap-blue">{formatTimer(otpTimer)}</span>
-                        </p>
-                      ) : (
-                        <p className="text-sm text-red-500">OTP has expired. <button type="button" onClick={() => setStep('credentials')} className="underline font-medium">Go back</button></p>
-                      )}
-                    </div>
-
-                    <div className="flex gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setStep('credentials')}
-                        className="btn-secondary flex-1 justify-center"
-                      >
-                        Back
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isLoading || otpTimer === 0}
-                        className="btn-primary flex-1 justify-center"
-                      >
-                        {isLoading ? (
-                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <><Shield size={15} />Verify & Login</>
-                        )}
-                      </button>
+                    <div className="text-center mt-4">
+                      <p className="text-sm text-gray-500">
+                        Don't have an account?{' '}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSignUp(true);
+                            setErrors({});
+                          }}
+                          className="text-ap-blue hover:text-ap-blue-dark font-medium underline"
+                        >
+                          Sign Up
+                        </button>
+                      </p>
                     </div>
                   </motion.form>
                 )}

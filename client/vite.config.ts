@@ -12,4 +12,13 @@ export default defineConfig({
   optimizeDeps: {
     include: ['compromise', 'fuse.js', 'crypto-js'],
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
+  },
 })
+

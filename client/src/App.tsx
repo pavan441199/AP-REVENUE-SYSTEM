@@ -2,12 +2,11 @@
 // AP Revenue ICAMS - Main Application Entry
 // ============================================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 import { useAppStore } from './store/appStore';
-import { seedDatabase } from './services/dbService';
 import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -28,18 +27,12 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
   const { checkSession, isLoading } = useAppStore();
-  const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
-    const init = async () => {
-      await seedDatabase();
-      setDbReady(true);
-      await checkSession();
-    };
-    init();
+    checkSession();
   }, []);
 
-  if (isLoading || !dbReady) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
